@@ -10,10 +10,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <nav>
-          <a href="/">Dashboard</a>
-          <a href="/groups">Groups</a>
-          <a href="/matches">Matches</a>
-          <a href="/admin">Admin (Teams)</a>
+          <a href="/">Kezdőlap</a>
+          <a href="/groups">Csoportok</a>
+          <a href="/matches">Meccsek</a>
+          <a href="/admin">Admin (Csapatok)</a>
         </nav>
         <div className="container">
           {children}
