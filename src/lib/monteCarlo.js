@@ -2,9 +2,9 @@
 import { getExpectedScore } from './elo.js';
 import { getMatchProbabilitiesDC } from './dixonColes.js';
 import { DC_WARMUP_MATCHES, N_SIMULATIONS } from './config.js';
+import { getDb } from '../db/index.js';
 import fs from 'fs';
 import path from 'path';
-import { getDb } from '../db/index.js';
 
 let isSimulationRunning = false;
 let pendingSimulationArgs = null;
@@ -60,7 +60,6 @@ function simulateKnockoutMatch(probs, eloHome, eloAway) {
 }
 
 function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu) {
-  // Deep clone group tables for this run
   const groups = {};
   for (const g in initialGroupTables) {
     groups[g] = {};
@@ -69,7 +68,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
     }
   }
 
-  // Simulate remaining group matches
   for (const m of remainingMatches) {
     if (m.stage === 'group') {
       const probs = getBlendedProbabilities(m.team_home, m.team_away, teamStates, mu);
@@ -79,13 +77,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
       groups[g][m.team_home].played++;
       groups[g][m.team_away].played++;
 
-      // We approximate goals for GD/GF in simulation using expected means if we want, 
-      // but to be fast we can just use fixed generic scores or purely points.
-      // For tiebreakers, we'll assign random tiebreaker values if points are equal,
-      // because simulating exact Poisson goals here 100k times takes slightly longer, 
-      // but let's do a fast poisson draw.
-      
-      // Fast goal draw approximation (mean = 1.5)
       const drawGoal = (lambda) => {
         let L = Math.exp(-lambda), k = 0, p = 1;
         do { k++; p *= Math.random(); } while (p > L);
@@ -114,7 +105,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
     }
   }
 
-  // Sort groups and find advancing teams
   const advanced = [];
   const thirdPlaces = [];
 
@@ -131,7 +121,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
     if (teamArr.length > 2) thirdPlaces.push(teamArr[2]);
   }
 
-  // Top 8 third places
   thirdPlaces.sort((a, b) => {
     if (a.pts !== b.pts) return b.pts - a.pts;
     if (a.gd !== b.gd) return b.gd - a.gd;
@@ -143,8 +132,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
     advanced.push(thirdPlaces[i].name);
   }
 
-  // We have 32 teams. Knockout bracket.
-  // We'll pair them randomly for simulation simplicity unless specific 2026 bracket mapping is provided.
   let currentRound = advanced;
   const semifinalists = [];
   const finalists = [];
@@ -152,7 +139,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
 
   while (currentRound.length > 1) {
     const nextRound = [];
-    // shuffle for generic bracket if not strictly mapped, but let's just pair 0-1, 2-3...
     for (let i = 0; i < currentRound.length; i += 2) {
       if (i + 1 >= currentRound.length) {
         nextRound.push(currentRound[i]);
@@ -177,13 +163,6 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
   }
 
   return { champion, finalists, semifinalists, advanced };
-}
-
-let isSimulationRunning = false;
-let pendingSimulationArgs = null;
-
-export function getSimulationStatus() {
-  return isSimulationRunning || pendingSimulationArgs !== null;
 }
 
 export function runMonteCarloBackground(teams, initialGroupTables, remainingMatches, teamStates, mu) {
