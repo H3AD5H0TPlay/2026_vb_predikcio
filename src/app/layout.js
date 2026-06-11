@@ -1,4 +1,5 @@
 import './globals.css'
+import SimulationIndicator from '@/components/SimulationIndicator'
 
 export const metadata = {
   title: 'VB 2026 Predikció',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         <div className="container">
           {children}
         </div>
+        <SimulationIndicator />
       </body>
     </html>
   )

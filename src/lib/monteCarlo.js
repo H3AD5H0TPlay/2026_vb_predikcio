@@ -166,6 +166,10 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
 
 let isSimulationRunning = false;
 
+export function getSimulationStatus() {
+  return isSimulationRunning;
+}
+
 export function runMonteCarloBackground(teams, initialGroupTables, remainingMatches, teamStates, mu) {
   if (isSimulationRunning) return;
   isSimulationRunning = true;
