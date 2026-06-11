@@ -2,7 +2,22 @@
 import { getExpectedScore } from './elo.js';
 import { getMatchProbabilitiesDC } from './dixonColes.js';
 import { DC_WARMUP_MATCHES, N_SIMULATIONS } from './config.js';
+import fs from 'fs';
+import path from 'path';
 import { getDb } from '../db/index.js';
+
+let isSimulationRunning = false;
+let pendingSimulationArgs = null;
+
+const statusFile = path.resolve(process.cwd(), '.sim_status');
+
+export function getSimulationStatus() {
+  try {
+    return fs.existsSync(statusFile);
+  } catch (e) {
+    return false;
+  }
+}
 
 export function getBlendedProbabilities(homeTeam, awayTeam, teamStates, mu) {
   const stateH = teamStates[homeTeam];
@@ -177,6 +192,11 @@ export function runMonteCarloBackground(teams, initialGroupTables, remainingMatc
     return;
   }
   isSimulationRunning = true;
+  
+  try {
+    fs.writeFileSync(statusFile, '1');
+  } catch(e) {}
+
   startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu);
 }
 
@@ -248,6 +268,13 @@ function finalizeResults(results, n) {
     console.error("Hiba a Monte Carlo mentéskor:", e);
   }
   isSimulationRunning = false;
+  
+  try {
+    if (fs.existsSync(statusFile)) {
+      fs.unlinkSync(statusFile);
+    }
+  } catch(e) {}
+
   console.log("Monte Carlo simulation finished.");
 
   if (pendingSimulationArgs) {
