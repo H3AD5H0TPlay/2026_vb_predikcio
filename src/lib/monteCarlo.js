@@ -213,19 +213,22 @@ function finalizeResults(results, n) {
     WHERE team_name = ?
   `);
 
-  const updateMany = db.transaction((res) => {
-    for (const team in res.champions) {
+  db.exec('BEGIN');
+  try {
+    for (const team in results.champions) {
       stmt.run(
-        res.champions[team] / n,
-        res.finalists[team] / n,
-        res.semifinalists[team] / n,
-        res.groupAdvance[team] / n,
+        results.champions[team] / n,
+        results.finalists[team] / n,
+        results.semifinalists[team] / n,
+        results.groupAdvance[team] / n,
         team
       );
     }
-  });
-
-  updateMany(results);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    console.error("Hiba a Monte Carlo mentéskor:", e);
+  }
   isSimulationRunning = false;
   console.log("Monte Carlo simulation finished.");
 }

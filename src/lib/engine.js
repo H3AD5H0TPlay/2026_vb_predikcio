@@ -147,12 +147,17 @@ export function triggerEngine() {
     matches_played = excluded.matches_played
   `);
 
-  db.transaction(() => {
+  db.exec('BEGIN');
+  try {
     teams.forEach(t => {
       const state = teamStates[t];
       updateStmt.run(t, state.effectiveElo, state.attack_strength, state.defense_strength, state.matches_played);
     });
-  })();
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    console.error("Hiba az Elo frissítéskor:", e);
+  }
 
   // 5. Fire Monte Carlo
   runMonteCarloBackground(teams, groups, remainingMatches, teamStates, mu);
