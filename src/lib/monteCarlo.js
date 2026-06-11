@@ -165,15 +165,22 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
 }
 
 let isSimulationRunning = false;
+let pendingSimulationArgs = null;
 
 export function getSimulationStatus() {
-  return isSimulationRunning;
+  return isSimulationRunning || pendingSimulationArgs !== null;
 }
 
 export function runMonteCarloBackground(teams, initialGroupTables, remainingMatches, teamStates, mu) {
-  if (isSimulationRunning) return;
+  if (isSimulationRunning) {
+    pendingSimulationArgs = { teams, initialGroupTables, remainingMatches, teamStates, mu };
+    return;
+  }
   isSimulationRunning = true;
+  startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu);
+}
 
+function startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu) {
   let runsCompleted = 0;
   const BATCH_SIZE = 5000;
   const results = { champions: {}, finalists: {}, semifinalists: {}, groupAdvance: {} };
@@ -186,6 +193,13 @@ export function runMonteCarloBackground(teams, initialGroupTables, remainingMatc
   });
 
   function processBatch() {
+    if (pendingSimulationArgs) {
+      const args = pendingSimulationArgs;
+      pendingSimulationArgs = null;
+      startProcessing(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu);
+      return;
+    }
+
     for (let i = 0; i < BATCH_SIZE && runsCompleted < N_SIMULATIONS; i++) {
        const sim = runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu);
        if (sim.champion) results.champions[sim.champion]++;
@@ -235,4 +249,10 @@ function finalizeResults(results, n) {
   }
   isSimulationRunning = false;
   console.log("Monte Carlo simulation finished.");
+
+  if (pendingSimulationArgs) {
+    const args = pendingSimulationArgs;
+    pendingSimulationArgs = null;
+    runMonteCarloBackground(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu);
+  }
 }
