@@ -181,7 +181,7 @@ export function runMonteCarloBackground(teams, initialGroupTables, remainingMatc
 
 function startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu) {
   let runsCompleted = 0;
-  const BATCH_SIZE = 5000;
+  const BATCH_SIZE = 250;
   const results = { champions: {}, finalists: {}, semifinalists: {}, groupAdvance: {} };
   
   teams.forEach(t => {

@@ -5,6 +5,9 @@ export default function SimulationIndicator() {
   const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
+    const handleStart = () => setIsRunning(true);
+    window.addEventListener('simulationStarted', handleStart);
+
     const checkStatus = () => {
       fetch('/api/status')
         .then(res => res.json())
@@ -13,8 +16,11 @@ export default function SimulationIndicator() {
     };
 
     checkStatus();
-    const interval = setInterval(checkStatus, 2000);
-    return () => clearInterval(interval);
+    const interval = setInterval(checkStatus, 1000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('simulationStarted', handleStart);
+    };
   }, []);
 
   if (!isRunning) return null;

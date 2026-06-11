@@ -13,6 +13,7 @@ export default function Matches() {
   const [stage, setStage] = useState('group');
   const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingMatchId, setEditingMatchId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetch('/api/teams').then(res => res.json()).then(data => {
@@ -42,8 +43,11 @@ export default function Matches() {
 
   const handleDeleteClick = async (id) => {
     if (!confirm('Biztosan törölni akarod ezt a meccset? Ekkor a teljes modell és a szimuláció újra lesz számolva!')) return;
+    setIsSaving(true);
+    window.dispatchEvent(new Event('simulationStarted'));
     await fetch(`/api/matches/${id}`, { method: 'DELETE' });
     fetchMatches();
+    setIsSaving(false);
   };
 
   const handleCancelEdit = () => {
@@ -54,6 +58,9 @@ export default function Matches() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+    window.dispatchEvent(new Event('simulationStarted'));
+    
     const tHomeObj = teams.find(t => t.team_name === teamHome);
     
     const payload = {
@@ -86,6 +93,7 @@ export default function Matches() {
     }
     
     fetchMatches();
+    setIsSaving(false);
   };
 
   return (
@@ -138,10 +146,10 @@ export default function Matches() {
           </div>
 
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-            <button type="submit" style={{background: editingMatchId ? '#10b981' : 'var(--accent)'}}>
-              {editingMatchId ? 'Módosítás Mentése' : 'Meccs Mentése'}
+            <button type="submit" disabled={isSaving} style={{background: isSaving ? '#6b7280' : (editingMatchId ? '#10b981' : 'var(--accent)'), cursor: isSaving ? 'wait' : 'pointer'}}>
+              {isSaving ? 'Mentés folyamatban...' : (editingMatchId ? 'Módosítás Mentése' : 'Meccs Mentése')}
             </button>
-            {editingMatchId && (
+            {editingMatchId && !isSaving && (
               <button type="button" onClick={handleCancelEdit} style={{background: '#ef4444'}}>
                 Mégse
               </button>
