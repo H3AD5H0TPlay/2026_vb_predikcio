@@ -136,22 +136,61 @@ export function triggerEngine() {
     }
   });
 
-  // 4. Update DB Team State
+  // 4. Knockout Auto-Advance & Eliminations
+  const stages = ['r32', 'r16', 'qf', 'sf', 'final'];
+  matches.forEach(m => {
+    if (stages.includes(m.stage) && m.team_home !== 'TBD' && m.team_away !== 'TBD') {
+      let winner = null;
+      let loser = null;
+      if (m.goals_home > m.goals_away) { winner = m.team_home; loser = m.team_away; }
+      else if (m.goals_away > m.goals_home) { winner = m.team_away; loser = m.team_home; }
+      else if (m.penalties && m.penalty_winner) { 
+        winner = m.penalty_winner; 
+        loser = winner === m.team_home ? m.team_away : m.team_home; 
+      }
+
+      if (winner && loser) {
+        if (teamStates[loser]) teamStates[loser].eliminated = 1;
+        
+        const stageIdx = stages.indexOf(m.stage);
+        if (stageIdx >= 0 && stageIdx < 4) {
+          const nextStage = stages[stageIdx + 1];
+          const nextSlot = Math.ceil(parseInt(m.group_id) / 2);
+          const isHomeSlot = parseInt(m.group_id) % 2 !== 0;
+
+          const nextMatch = db.prepare("SELECT * FROM matches WHERE stage = ? AND group_id = ?").get(nextStage, nextSlot.toString());
+          if (nextMatch) {
+            if (isHomeSlot && nextMatch.team_home !== winner) {
+              db.prepare("UPDATE matches SET team_home = ? WHERE id = ?").run(winner, nextMatch.id);
+            } else if (!isHomeSlot && nextMatch.team_away !== winner) {
+              db.prepare("UPDATE matches SET team_away = ? WHERE id = ?").run(winner, nextMatch.id);
+            }
+          } else {
+             db.prepare(`INSERT INTO matches (team_home, team_away, goals_home, goals_away, stage, group_id, match_date) VALUES (?, ?, 0, 0, ?, ?, '2026-07-01')`)
+               .run(isHomeSlot ? winner : 'TBD', isHomeSlot ? 'TBD' : winner, nextStage, nextSlot.toString());
+          }
+        }
+      }
+    }
+  });
+
+  // 5. Update DB Team State
   const updateStmt = db.prepare(`
-    INSERT INTO team_state (team_name, elo, attack_strength, defense_strength, matches_played)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO team_state (team_name, elo, attack_strength, defense_strength, matches_played, eliminated)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(team_name) DO UPDATE SET
     elo = excluded.elo,
     attack_strength = excluded.attack_strength,
     defense_strength = excluded.defense_strength,
-    matches_played = excluded.matches_played
+    matches_played = excluded.matches_played,
+    eliminated = excluded.eliminated
   `);
 
   db.exec('BEGIN');
   try {
     teams.forEach(t => {
       const state = teamStates[t];
-      updateStmt.run(t, state.effectiveElo, state.attack_strength, state.defense_strength, state.matches_played);
+      updateStmt.run(t, state.effectiveElo, state.attack_strength, state.defense_strength, state.matches_played, state.eliminated);
     });
     db.exec('COMMIT');
   } catch (e) {
@@ -159,6 +198,8 @@ export function triggerEngine() {
     console.error("Hiba az Elo frissítéskor:", e);
   }
 
-  // 5. Fire Monte Carlo
-  runMonteCarloBackground(teams, groups, remainingMatches, teamStates, mu);
+  // 6. Fire Monte Carlo
+  // We need to pass the actual current knockout matches so MC knows the official bracket!
+  const currentKnockouts = matches.filter(m => stages.includes(m.stage));
+  runMonteCarloBackground(teams, groups, remainingMatches, teamStates, mu, currentKnockouts);
 }

@@ -1,0 +1,94 @@
+.bracket-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  overflow-x: auto;
+  padding-bottom: 2rem;
+  margin-top: 2rem;
+}
+
+.bracket-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 1.5rem;
+  min-width: 280px;
+}
+
+.bracket-column h3 {
+  text-align: center;
+  color: var(--accent);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 1rem;
+}
+
+.match-card {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.match-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.7);
+  border-color: var(--accent);
+}
+
+.match-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.match-row select {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.match-row select:focus {
+  border-color: var(--accent);
+}
+
+.match-row input {
+  width: 50px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text);
+  text-align: center;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  outline: none;
+}
+
+.match-row input:focus {
+  border-color: var(--accent);
+}
+
+/* Customizing the scrollbar for the bracket container */
+.bracket-container::-webkit-scrollbar {
+  height: 8px;
+}
+.bracket-container::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+}
+.bracket-container::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}

@@ -52,14 +52,17 @@ function simulateMatch(probs) {
   return 'away';
 }
 
-function simulateKnockoutMatch(probs, eloHome, eloAway) {
+function simulateKnockoutMatch(probs, eloHome, eloAway, teamH, teamA, teamStates) {
+  if (teamStates[teamH]?.eliminated) return 'away';
+  if (teamStates[teamA]?.eliminated) return 'home';
+
   const pHomeAdj = probs.pHomeWin + probs.pDraw * (probs.pHomeWin / (probs.pHomeWin + probs.pAwayWin));
   const rand = Math.random();
   if (rand < pHomeAdj) return 'home';
   return 'away';
 }
 
-function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu) {
+function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts) {
   const groups = {};
   for (const g in initialGroupTables) {
     groups[g] = {};
@@ -116,9 +119,9 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
       return Math.random() - 0.5;
     });
 
-    if (teamArr.length > 0) advanced.push(teamArr[0].name);
-    if (teamArr.length > 1) advanced.push(teamArr[1].name);
-    if (teamArr.length > 2) thirdPlaces.push(teamArr[2]);
+    if (teamArr.length > 0) advanced.push({ name: teamArr[0].name, rankInGroup: 1, pts: teamArr[0].pts, gd: teamArr[0].gd, gf: teamArr[0].gf });
+    if (teamArr.length > 1) advanced.push({ name: teamArr[1].name, rankInGroup: 2, pts: teamArr[1].pts, gd: teamArr[1].gd, gf: teamArr[1].gf });
+    if (teamArr.length > 2) thirdPlaces.push({ name: teamArr[2].name, rankInGroup: 3, pts: teamArr[2].pts, gd: teamArr[2].gd, gf: teamArr[2].gf });
   }
 
   thirdPlaces.sort((a, b) => {
@@ -128,46 +131,87 @@ function runSingleSimulation(teams, initialGroupTables, remainingMatches, teamSt
     return Math.random() - 0.5;
   });
 
-  for (let i = 0; i < 8 && i < thirdPlaces.length; i++) {
-    advanced.push(thirdPlaces[i].name);
+  const bestThirds = thirdPlaces.slice(0, 8);
+  const all32 = [...advanced, ...bestThirds];
+
+  all32.sort((a, b) => {
+    if (a.rankInGroup !== b.rankInGroup) return a.rankInGroup - b.rankInGroup;
+    if (a.pts !== b.pts) return b.pts - a.pts;
+    if (a.gd !== b.gd) return b.gd - a.gd;
+    return b.gf - a.gf;
+  });
+
+  const simulatedBracket = {
+    'r32': Array.from({length: 16}, (_, i) => ({ team_home: all32[i]?.name, team_away: all32[31-i]?.name })),
+    'r16': Array.from({length: 8}, () => ({ team_home: null, team_away: null })),
+    'qf': Array.from({length: 4}, () => ({ team_home: null, team_away: null })),
+    'sf': Array.from({length: 2}, () => ({ team_home: null, team_away: null })),
+    'final': [{ team_home: null, team_away: null }]
+  };
+
+  const stages = ['r32', 'r16', 'qf', 'sf', 'final'];
+  
+  if (currentKnockouts) {
+    stages.forEach(stage => {
+      const stageMatches = currentKnockouts.filter(m => m.stage === stage);
+      stageMatches.forEach(dbMatch => {
+        const idx = parseInt(dbMatch.group_id) - 1;
+        if (simulatedBracket[stage][idx]) {
+          if (dbMatch.team_home !== 'TBD') simulatedBracket[stage][idx].team_home = dbMatch.team_home;
+          if (dbMatch.team_away !== 'TBD') simulatedBracket[stage][idx].team_away = dbMatch.team_away;
+        }
+      });
+    });
   }
 
-  let currentRound = advanced;
   const semifinalists = [];
   const finalists = [];
   let champion = null;
 
-  while (currentRound.length > 1) {
-    const nextRound = [];
-    for (let i = 0; i < currentRound.length; i += 2) {
-      if (i + 1 >= currentRound.length) {
-        nextRound.push(currentRound[i]);
-        break;
+  stages.forEach((stage, sIdx) => {
+    const nextStage = stages[sIdx + 1];
+    
+    simulatedBracket[stage].forEach((m, idx) => {
+      const t1 = m.team_home;
+      const t2 = m.team_away;
+      
+      let winner = null;
+      if (!t1 && !t2) winner = null;
+      else if (!t2) winner = t1;
+      else if (!t1) winner = t2;
+      else {
+        const probs = getBlendedProbabilities(t1, t2, teamStates, mu);
+        winner = simulateKnockoutMatch(probs, teamStates[t1].elo, teamStates[t2].elo, t1, t2, teamStates) === 'home' ? t1 : t2;
       }
-      const t1 = currentRound[i];
-      const t2 = currentRound[i+1];
-      const probs = getBlendedProbabilities(t1, t2, teamStates, mu);
-      const winner = simulateKnockoutMatch(probs, teamStates[t1].elo, teamStates[t2].elo) === 'home' ? t1 : t2;
-      nextRound.push(winner);
-    }
-    
-    if (nextRound.length === 4) {
-      semifinalists.push(...nextRound);
-    } else if (nextRound.length === 2) {
-      finalists.push(...nextRound);
-    } else if (nextRound.length === 1) {
-      champion = nextRound[0];
-    }
-    
-    currentRound = nextRound;
-  }
+      
+      if (winner) {
+        if (stage === 'qf') semifinalists.push(winner);
+        if (stage === 'sf') finalists.push(winner);
+        if (stage === 'final') champion = winner;
+        
+        if (nextStage) {
+          const nextSlot = Math.floor(idx / 2);
+          const isHome = idx % 2 === 0;
+          if (isHome) {
+            if (!simulatedBracket[nextStage][nextSlot].team_home) {
+              simulatedBracket[nextStage][nextSlot].team_home = winner;
+            }
+          } else {
+            if (!simulatedBracket[nextStage][nextSlot].team_away) {
+              simulatedBracket[nextStage][nextSlot].team_away = winner;
+            }
+          }
+        }
+      }
+    });
+  });
 
-  return { champion, finalists, semifinalists, advanced };
+  return { champion, finalists, semifinalists, advanced: all32.map(t => t.name) };
 }
 
-export function runMonteCarloBackground(teams, initialGroupTables, remainingMatches, teamStates, mu) {
+export function runMonteCarloBackground(teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts) {
   if (isSimulationRunning) {
-    pendingSimulationArgs = { teams, initialGroupTables, remainingMatches, teamStates, mu };
+    pendingSimulationArgs = { teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts };
     return;
   }
   isSimulationRunning = true;
@@ -176,10 +220,10 @@ export function runMonteCarloBackground(teams, initialGroupTables, remainingMatc
     fs.writeFileSync(statusFile, '1');
   } catch(e) {}
 
-  startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu);
+  startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts);
 }
 
-function startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu) {
+function startProcessing(teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts) {
   let runsCompleted = 0;
   const BATCH_SIZE = 250;
   const results = { champions: {}, finalists: {}, semifinalists: {}, groupAdvance: {} };
@@ -195,12 +239,12 @@ function startProcessing(teams, initialGroupTables, remainingMatches, teamStates
     if (pendingSimulationArgs) {
       const args = pendingSimulationArgs;
       pendingSimulationArgs = null;
-      startProcessing(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu);
+      startProcessing(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu, args.currentKnockouts);
       return;
     }
 
     for (let i = 0; i < BATCH_SIZE && runsCompleted < N_SIMULATIONS; i++) {
-       const sim = runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu);
+       const sim = runSingleSimulation(teams, initialGroupTables, remainingMatches, teamStates, mu, currentKnockouts);
        if (sim.champion) results.champions[sim.champion]++;
        sim.finalists.forEach(t => results.finalists[t]++);
        sim.semifinalists.forEach(t => results.semifinalists[t]++);
@@ -259,6 +303,6 @@ function finalizeResults(results, n) {
   if (pendingSimulationArgs) {
     const args = pendingSimulationArgs;
     pendingSimulationArgs = null;
-    runMonteCarloBackground(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu);
+    runMonteCarloBackground(args.teams, args.initialGroupTables, args.remainingMatches, args.teamStates, args.mu, args.currentKnockouts);
   }
 }

@@ -14,6 +14,7 @@ export default function RootLayout({ children }) {
           <a href="/">Kezdőlap</a>
           <a href="/groups">Csoportok</a>
           <a href="/matches">Meccsek</a>
+          <a href="/playoffs">Play-offs</a>
           <a href="/admin">Admin (Csapatok)</a>
           <a href="/calculations">Matek (Számítások)</a>
         </nav>
