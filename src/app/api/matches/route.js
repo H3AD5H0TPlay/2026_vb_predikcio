@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
 import { addMatchAndRunEngine } from '@/lib/engine';
 
+export const dynamic = 'force-dynamic';
+
 let simulationStatus = { running: false };
 
 export async function GET() {

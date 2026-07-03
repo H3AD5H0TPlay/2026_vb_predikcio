@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const db = getDb();
   const knockoutMatches = db.prepare(`

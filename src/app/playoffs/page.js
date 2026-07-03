@@ -71,12 +71,13 @@ export default function Playoffs() {
   const renderMatch = (stage, slotData) => {
     const m = slotData.match || { team_home: 'TBD', team_away: 'TBD', goals_home: 0, goals_away: 0 };
     return (
-      <div className="match-card" key={`${stage}-${slotData.slot}`}>
-        <div className="match-row">
-          <select 
-            value={m.team_home} 
-            onChange={(e) => handleUpdateMatch(m, stage, slotData.slot, 'team_home', e.target.value)}
-          >
+      <div className="match-slot" key={`${stage}-${slotData.slot}`}>
+        <div className="match-card">
+          <div className="match-row">
+            <select 
+              value={m.team_home} 
+              onChange={(e) => handleUpdateMatch(m, stage, slotData.slot, 'team_home', e.target.value)}
+            >
             <option value="TBD">TBD</option>
             {teams.map(t => <option key={t.team_name} value={t.team_name}>{t.team_name}</option>)}
           </select>
@@ -107,6 +108,7 @@ export default function Playoffs() {
               }
             }}
           />
+          </div>
         </div>
       </div>
     );
