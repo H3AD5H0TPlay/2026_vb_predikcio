@@ -83,12 +83,12 @@ export default function Dashboard() {
             {sortedTeams.map((t) => (
               <tr key={t.team_name}>
                 <td>{t.originalRank}.</td>
-                <td><strong>{t.team_name}</strong></td>
+                <td style={{textDecoration: t.eliminated ? 'line-through' : 'none'}}><strong>{t.team_name}</strong></td>
                 <td>{t.group_id}</td>
-                <td style={{color: 'var(--accent)'}}>{(t.champion_prob * 100).toFixed(1)}%</td>
-                <td>{(t.finalist_prob * 100).toFixed(1)}%</td>
-                <td>{(t.sf_prob * 100).toFixed(1)}%</td>
-                <td>{(t.group_prob * 100).toFixed(1)}%</td>
+                <td style={{color: 'var(--accent)'}}>{t.eliminated ? '0.0' : (t.champion_prob * 100).toFixed(1)}%</td>
+                <td>{t.eliminated ? '0.0' : (t.finalist_prob * 100).toFixed(1)}%</td>
+                <td>{t.eliminated ? '0.0' : (t.sf_prob * 100).toFixed(1)}%</td>
+                <td>{t.eliminated ? '0.0' : (t.group_prob * 100).toFixed(1)}%</td>
                 <td>{t.elo ? t.elo.toFixed(1) : t.fifa_points}</td>
               </tr>
             ))}

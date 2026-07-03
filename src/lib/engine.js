@@ -71,7 +71,8 @@ export function triggerEngine() {
   });
 
   // 2. Dixon-Coles ML optimization
-  const { params: dcParams, mu } = optimizeDixonColes(matches, teams);
+  const validMatches = matches.filter(m => m.team_home !== 'TBD' && m.team_away !== 'TBD');
+  const { params: dcParams, mu } = optimizeDixonColes(validMatches, teams);
   
   teams.forEach(t => {
     teamStates[t].attack_strength = dcParams[t].alpha;

@@ -5,7 +5,7 @@ import { triggerEngine } from '@/lib/engine';
 export async function GET() {
   const db = getDb();
   const teams = db.prepare(`
-    SELECT f.*, t.elo, t.matches_played, t.champion_prob, t.finalist_prob, t.sf_prob, t.group_prob 
+    SELECT f.*, t.elo, t.matches_played, t.champion_prob, t.finalist_prob, t.sf_prob, t.group_prob, t.eliminated 
     FROM fifa_rankings f 
     LEFT JOIN team_state t ON f.team_name = t.team_name
     ORDER BY t.champion_prob DESC, f.fifa_points DESC

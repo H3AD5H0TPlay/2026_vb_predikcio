@@ -25,11 +25,7 @@ export default function Playoffs() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!confirm('Biztosan generálod az ágrajzot a csoportkörök alapján? Ez törli a meglévő legjobb 32 meccseit és újakat hoz létre!')) return;
-    setIsGenerating(true);
-    await fetch('/api/bracket', { method: 'POST' });
-    await fetchBracket();
-    setIsGenerating(false);
+    // Removed
   };
 
   const handleUpdateMatch = async (match, stage, slot, field, value) => {
@@ -83,10 +79,11 @@ export default function Playoffs() {
           </select>
           <input 
             type="number" 
+            min="0"
             defaultValue={m.goals_home} 
             onBlur={(e) => {
               if (parseInt(e.target.value) !== m.goals_home) {
-                handleUpdateMatch(m, stage, slotData.slot, 'goals_home', parseInt(e.target.value) || 0)
+                handleUpdateMatch(m, stage, slotData.slot, 'goals_home', Math.max(0, parseInt(e.target.value) || 0))
               }
             }}
           />
@@ -101,10 +98,11 @@ export default function Playoffs() {
           </select>
           <input 
             type="number" 
+            min="0"
             defaultValue={m.goals_away} 
             onBlur={(e) => {
               if (parseInt(e.target.value) !== m.goals_away) {
-                handleUpdateMatch(m, stage, slotData.slot, 'goals_away', parseInt(e.target.value) || 0)
+                handleUpdateMatch(m, stage, slotData.slot, 'goals_away', Math.max(0, parseInt(e.target.value) || 0))
               }
             }}
           />
@@ -126,9 +124,6 @@ export default function Playoffs() {
     <main>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
         <h1>Play-off Ágrajz</h1>
-        <button onClick={handleGenerate} disabled={isGenerating} style={{background: 'var(--accent)', cursor: 'pointer', padding: '0.8rem 1.5rem', borderRadius: '8px', color: 'black', fontWeight: 'bold', border: 'none'}}>
-          {isGenerating ? 'Generálás folyamatban...' : 'Automatikus Ágrajz Generálás'}
-        </button>
       </div>
       
       <p style={{color: 'var(--text-dim)', marginBottom: '1rem'}}>
