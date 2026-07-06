@@ -137,41 +137,17 @@ export function triggerEngine() {
     }
   });
 
-  // 4. Knockout Auto-Advance & Eliminations
-  const stages = ['r32', 'r16', 'qf', 'sf', 'final'];
+  // 4. Kiesési elimináció
+  const knockoutStages = ['r32', 'r16', 'qf', 'sf', 'final'];
   matches.forEach(m => {
-    if (stages.includes(m.stage) && m.team_home !== 'TBD' && m.team_away !== 'TBD') {
-      let winner = null;
+    if (knockoutStages.includes(m.stage) && m.team_home !== 'TBD' && m.team_away !== 'TBD') {
       let loser = null;
-      if (m.goals_home > m.goals_away) { winner = m.team_home; loser = m.team_away; }
-      else if (m.goals_away > m.goals_home) { winner = m.team_away; loser = m.team_home; }
-      else if (m.penalties && m.penalty_winner) { 
-        winner = m.penalty_winner; 
-        loser = winner === m.team_home ? m.team_away : m.team_home; 
+      if (m.goals_home > m.goals_away) loser = m.team_away;
+      else if (m.goals_away > m.goals_home) loser = m.team_home;
+      else if (m.penalties && m.penalty_winner) {
+        loser = m.penalty_winner === 'home' ? m.team_away : m.team_home;
       }
-
-      if (winner && loser) {
-        if (teamStates[loser]) teamStates[loser].eliminated = 1;
-        
-        const stageIdx = stages.indexOf(m.stage);
-        if (stageIdx >= 0 && stageIdx < 4) {
-          const nextStage = stages[stageIdx + 1];
-          const nextSlot = Math.ceil(parseInt(m.group_id) / 2);
-          const isHomeSlot = parseInt(m.group_id) % 2 !== 0;
-
-          const nextMatch = db.prepare("SELECT * FROM matches WHERE stage = ? AND group_id = ?").get(nextStage, nextSlot.toString());
-          if (nextMatch) {
-            if (isHomeSlot && nextMatch.team_home !== winner) {
-              db.prepare("UPDATE matches SET team_home = ? WHERE id = ?").run(winner, nextMatch.id);
-            } else if (!isHomeSlot && nextMatch.team_away !== winner) {
-              db.prepare("UPDATE matches SET team_away = ? WHERE id = ?").run(winner, nextMatch.id);
-            }
-          } else {
-             db.prepare(`INSERT INTO matches (team_home, team_away, goals_home, goals_away, stage, group_id, match_date) VALUES (?, ?, 0, 0, ?, ?, '2026-07-01')`)
-               .run(isHomeSlot ? winner : 'TBD', isHomeSlot ? 'TBD' : winner, nextStage, nextSlot.toString());
-          }
-        }
-      }
+      if (loser && teamStates[loser]) teamStates[loser].eliminated = 1;
     }
   });
 

@@ -12,6 +12,9 @@ export default function Matches() {
   const [goalsAway, setGoalsAway] = useState('0');
   const [stage, setStage] = useState('group');
   const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
+  const [aet, setAet] = useState(false);
+  const [penalties, setPenalties] = useState(false);
+  const [penaltyWinner, setPenaltyWinner] = useState('home');
   const [editingMatchId, setEditingMatchId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,6 +41,9 @@ export default function Matches() {
     setGoalsAway(m.goals_away.toString());
     setStage(m.stage);
     setMatchDate(m.match_date);
+    setAet(m.aet === 1);
+    setPenalties(m.penalties === 1);
+    setPenaltyWinner(m.penalty_winner || 'home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -54,6 +60,9 @@ export default function Matches() {
     setEditingMatchId(null);
     setGoalsHome('0');
     setGoalsAway('0');
+    setAet(false);
+    setPenalties(false);
+    setPenaltyWinner('home');
   };
 
   const handleSubmit = async (e) => {
@@ -71,8 +80,9 @@ export default function Matches() {
       stage: stage,
       group_id: stage === 'group' ? tHomeObj?.group_id : null,
       match_date: matchDate,
-      aet: false,
-      penalties: false
+      aet: aet,
+      penalties: penalties,
+      penalty_winner: penalties ? penaltyWinner : null
     };
 
     if (editingMatchId) {
@@ -84,6 +94,9 @@ export default function Matches() {
       setEditingMatchId(null);
       setGoalsHome('0');
       setGoalsAway('0');
+      setAet(false);
+      setPenalties(false);
+      setPenaltyWinner('home');
     } else {
       await fetch('/api/matches', {
         method: 'POST',
@@ -144,6 +157,32 @@ export default function Matches() {
               <input type="date" value={matchDate} onChange={e => setMatchDate(e.target.value)} required />
             </div>
           </div>
+
+          {(stage !== 'group') && (
+            <>
+              <div className="form-group">
+                <label>
+                  <input type="checkbox" checked={aet} onChange={e => setAet(e.target.checked)} style={{marginRight:'0.5rem'}}/>
+                  Hosszabbítás (AET)
+                </label>
+              </div>
+              <div className="form-group">
+                <label>
+                  <input type="checkbox" checked={penalties} onChange={e => setPenalties(e.target.checked)} style={{marginRight:'0.5rem'}}/>
+                  Büntetőkkel dőlt el
+                </label>
+              </div>
+              {penalties && (
+                <div className="form-group">
+                  <label>Büntető győztes</label>
+                  <select value={penaltyWinner} onChange={e => setPenaltyWinner(e.target.value)}>
+                    <option value="home">Hazai csapat</option>
+                    <option value="away">Vendég csapat</option>
+                  </select>
+                </div>
+              )}
+            </>
+          )}
 
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
             <button type="submit" disabled={isSaving} style={{background: isSaving ? '#6b7280' : (editingMatchId ? '#10b981' : 'var(--accent)'), cursor: isSaving ? 'wait' : 'pointer'}}>

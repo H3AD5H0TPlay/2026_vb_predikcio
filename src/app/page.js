@@ -1,18 +1,38 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function Dashboard() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
+  const wasRunning = useRef(false);
+
   useEffect(() => {
-    fetch('/api/teams')
-      .then(res => res.json())
-      .then(data => {
-        setTeams(data);
-        setLoading(false);
+    const loadTeams = () => {
+      fetch('/api/teams')
+        .then(res => res.json())
+        .then(data => {
+          setTeams(data);
+          setLoading(false);
+        });
+    };
+    
+    loadTeams();
+
+    // Poll a szimulációs státuszra, és ha befejeződött, frissítse az adatokat
+    const interval = setInterval(() => {
+      fetch('/api/status').then(r => r.json()).then(s => {
+        if (s.running) {
+          wasRunning.current = true;
+        } else if (!s.running && wasRunning.current) {
+          loadTeams();
+          wasRunning.current = false;
+        }
       });
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleSort = (key) => {

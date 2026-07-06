@@ -83,22 +83,42 @@ export function optimizeDixonColes(matches, teams) {
     });
     
     matches.forEach(m => {
-      const aH = params[m.team_home].alpha;
-      const bH = params[m.team_home].beta;
-      const aA = params[m.team_away].alpha;
-      const bA = params[m.team_away].beta;
+      const aH = params[m.team_home]?.alpha ?? 1.0;
+      const bH = params[m.team_home]?.beta ?? 1.0;
+      const aA = params[m.team_away]?.alpha ?? 1.0;
+      const bA = params[m.team_away]?.beta ?? 1.0;
+
+      if (!params[m.team_home] || !params[m.team_away]) return;
 
       const lambdaH = aH * bA * mu;
       const lambdaA = aA * bH * mu;
-      
+
+      const tauVal = tau(m.goals_home, m.goals_away, lambdaH, lambdaA);
+      const safeTau = tauVal === 0 ? 0.001 : tauVal;
+
+      // Poisson log-likelihood gradient
       const dLL_dLambdaH = (m.goals_home / (lambdaH || 0.001)) - 1;
       const dLL_dLambdaA = (m.goals_away / (lambdaA || 0.001)) - 1;
 
-      grads[m.team_home].dAlpha += dLL_dLambdaH * (bA * mu);
-      grads[m.team_away].dBeta += dLL_dLambdaH * (aH * mu);
+      // τ korrekció gradient (alacsony gólszámú meccsekre)
+      let dTau_dLambdaH = 0;
+      let dTau_dLambdaA = 0;
+      if (m.goals_home === 0 && m.goals_away === 0) {
+        dTau_dLambdaH = -lambdaA * RHO / safeTau;
+        dTau_dLambdaA = -lambdaH * RHO / safeTau;
+      } else if (m.goals_home === 1 && m.goals_away === 0) {
+        dTau_dLambdaA = RHO / safeTau;
+      } else if (m.goals_home === 0 && m.goals_away === 1) {
+        dTau_dLambdaH = RHO / safeTau;
+      }
 
-      grads[m.team_away].dAlpha += dLL_dLambdaA * (bH * mu);
-      grads[m.team_home].dBeta += dLL_dLambdaA * (aA * mu);
+      const totalGradH = dLL_dLambdaH + dTau_dLambdaH;
+      const totalGradA = dLL_dLambdaA + dTau_dLambdaA;
+
+      grads[m.team_home].dAlpha += totalGradH * (bA * mu);
+      grads[m.team_away].dBeta  += totalGradH * (aH * mu);
+      grads[m.team_away].dAlpha += totalGradA * (bH * mu);
+      grads[m.team_home].dBeta  += totalGradA * (aA * mu);
     });
 
     teams.forEach(team => {
